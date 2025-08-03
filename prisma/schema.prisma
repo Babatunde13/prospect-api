@@ -1,0 +1,82 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Prospect {
+  id           String              @id @db.Char(26)
+  linkedin_url String              @unique
+  name         String?
+  title        String?
+  company      String?
+  location     String?
+  profile_data Json?               @db.JsonB
+  created_at   DateTime            @default(now()) @db.Timestamptz
+  updated_at   DateTime?           @updatedAt @db.Timestamptz
+
+  message_sequences MessageSequence[]
+  tov_config        TovConfig?
+
+  @@index([created_at])
+  @@map("prospects")
+}
+
+model TovConfig {
+  id           String              @id @db.Char(26)
+  prospect_id  String              @unique
+  formality    Float
+  warmth       Float
+  directness   Float
+  created_at   DateTime            @default(now()) @db.Timestamptz
+  updated_at   DateTime?           @updatedAt @db.Timestamptz
+
+  prospect            Prospect           @relation(fields: [prospect_id], references: [id], onDelete: Cascade)
+  message_sequences   MessageSequence[]
+
+  @@index([prospect_id])
+  @@index([created_at])
+  @@map("tov_configs")
+}
+
+model MessageSequence {
+  id              String           @id @db.Char(26)
+  prospect_id     String
+  tov_config_id   String
+  company_context String
+  sequences       Json             @db.JsonB
+  sequence_length Int
+  created_at      DateTime         @default(now()) @db.Timestamptz
+  updated_at      DateTime?        @updatedAt @db.Timestamptz
+
+  prospect        Prospect         @relation(fields: [prospect_id], references: [id])
+  tov_config      TovConfig        @relation(fields: [tov_config_id], references: [id])
+  ai_generations  AIGeneration[]
+
+  @@index([prospect_id])
+  @@index([tov_config_id])
+  @@index([created_at])
+  @@map("message_sequences")
+}
+
+model AIGeneration {
+  id                  String          @id @db.Char(26)
+  message_sequence_id  String
+  prompt              Json            @db.JsonB
+  output              Json            @db.JsonB
+  model               String
+  client_type         String
+  tokens_used         Int
+  cost                Float
+  created_at          DateTime        @default(now()) @db.Timestamptz
+  updated_at          DateTime?       @updatedAt @db.Timestamptz
+
+  message_sequence    MessageSequence @relation(fields: [message_sequence_id], references: [id])
+
+  @@index([message_sequence_id])
+  @@index([created_at])
+  @@map("ai_generations")
+}
